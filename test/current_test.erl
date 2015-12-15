@@ -22,11 +22,8 @@ current_test_() ->
       {timeout, 30,  ?_test(q())},
       {timeout, 30,  ?_test(get_put_update_delete())},
       {timeout, 30,  ?_test(retry_with_timeout())},
-      {timeout, 30,  ?_test(timeout())},
       {timeout, 30,  ?_test(throttled())},
-      {timeout, 30,  ?_test(non_json_error())},
-      {timeout, 30,  ?_test(http_client())},
-      {timeout, 30,  ?_test(raw_socket())}
+      {timeout, 30,  ?_test(non_json_error())}
      ]}.
 
 
@@ -366,11 +363,6 @@ retry_with_timeout() ->
 
     meck:unload(current_http_client).
 
-timeout() ->
-    ?assertEqual({error, max_retries, timeout},
-                 current:describe_table({[{<<"TableName">>, ?TABLE}]},
-                                        [{call_timeout, 1}])).
-
 
 throttled() ->
     ok = create_table(?TABLE),
@@ -464,43 +456,10 @@ post_vanilla_test() ->
                  iolist_to_binary(
                    current:authorization(Headers, "", Now))).
 
-http_client() ->
-    ?assertEqual(ok, application:set_env(current, http_client, party)),
-    ok = maybe_connect_party(),
-    current:delete_table({[{<<"TableName">>, ?TABLE}]}),
-    ?assertNotEqual({ok, lhttpc}, application:get_env(current, http_client)),
-    ?assertEqual(ok, current:wait_for_delete(?TABLE, 5000)),
-
-    ?assertEqual(ok, application:set_env(current, http_client, lhttpc)),
-    current:delete_table({[{<<"TableName">>, ?TABLE}]}),
-    ?assertNotEqual({ok, party}, application:get_env(current, http_client)),
-    ?assertEqual(ok, current:wait_for_delete(?TABLE, 5000)),
-
-    ok.
-
-raw_socket() ->
-    ?assertEqual(ok, application:set_env(current, http_client, lhttpc)),
-    ?assertEqual({error,raw_socket_not_supported},
-                 current:open_socket(?ENDPOINT, party_socket)),
-
-    ?assertEqual(ok, application:set_env(current, http_client, party)),
-    {Reply, Socket} = current:open_socket(?ENDPOINT, party_socket),
-    ?assertEqual(ok, Reply),
-
-    current:delete_table({[{<<"TableName">>, ?TABLE}]}),
-    ?assertEqual(ok, current:wait_for_delete(?TABLE, 5000)),
-
-    ?assertEqual(ok, current:close_socket(Socket, party_socket)),
-
-    ok.
-
 
 %%
 %% HELPERS
 %%
-
-maybe_connect_party() ->
-    current:connect(iolist_to_binary(["http://", ?ENDPOINT]), 2).
 
 creq(Name) ->
     {ok, B} = file:read_file(
@@ -550,8 +509,6 @@ setup() ->
     application:set_env(current, secret_access_key, SecretAccessKey),
 
     {ok, _} = application:ensure_all_started(current),
-
-    maybe_connect_party(),
 
     ok.
 

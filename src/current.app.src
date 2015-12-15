@@ -6,11 +6,10 @@
   {applications, [
                   kernel,
                   stdlib,
-                  party,
-                  lhttpc,
                   jiffy,
                   edatetime,
-                  erlsha2
+                  erlsha2,
+                  hackney
                  ]},
   {mod, { current_app, []}},
   {env, []}

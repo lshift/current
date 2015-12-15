@@ -32,8 +32,6 @@
          update_table/2
         ]).
 
--export([connect/2, disconnect/1]).
--export([open_socket/2, close_socket/2]).
 -export([wait_for_delete/2, wait_for_active/2]).
 
 
@@ -97,63 +95,6 @@ update_item(Request)                 -> retry(update_item, Request, []).
 update_item(Request, Opts)           -> retry(update_item, Request, Opts).
 update_table(Request)                -> retry(update_table, Request, []).
 update_table(Request, Opts)          -> retry(update_table, Request, Opts).
-
-
-
-%%
-%% PARTY RAW SOCKET WRAPPERS
-%%
-
--spec connect(iolist(), pos_integer()) -> ok | {error, connect_not_supported}.
-connect(Endpoint, ConnLimit) ->
-    case current_http_client:is_party_active() of
-        true ->
-            ok = party:connect(Endpoint, ConnLimit);
-        false ->
-            %%NOTE: lhttpc does not support connect concept
-            {error, connect_not_supported}
-    end.
-
--spec disconnect(iolist()) -> ok | {error, connect_not_supported}.
-disconnect(Endpoint) ->
-    case current_http_client:is_party_active() of
-        true ->
-            ok = party:disconnect(Endpoint);
-        false ->
-            {error, connect_not_supported}
-    end.
-
-%%TODO: what about prefix it with party_ to make function obvious?
--spec open_socket(any(), atom()) -> {ok, pid()} | {error, atom()}.
-open_socket(undefined, _Type) ->
-    {error, missing_endpoint};
-open_socket(Endpoint, party_socket) ->
-    case current_http_client:is_party_active() of
-        true  ->
-            {ok, SocketPid} = party_socket_raw:start_link(Endpoint),
-
-            %% automatically set socket to party_socket
-            ok = application:set_env(current, party_socket, SocketPid),
-            {ok, SocketPid};
-        false ->
-            {error, raw_socket_not_supported}
-    end;
-open_socket(Endpoint, _Plain) ->
-    case current_http_client:is_party_active() of
-        true  ->
-            {ok, SocketPid} = party_socket:start_link(Endpoint),
-
-            %% automatically set socket to party_socket
-            ok = application:set_env(current, party_socket, SocketPid),
-            {ok, SocketPid};
-        false -> {error, socket_not_supported}
-    end.
-
--spec close_socket(pid(), atom()) -> ok.
-close_socket(Socket, party_socket) ->
-    party_socket_raw:stop(Socket);
-close_socket(_Socket, _Plain) ->
-    ok.
 
 
 %%
@@ -457,9 +398,8 @@ retry(Op, Body, Retries, Start, Opts) ->
 do(Operation, Body, Opts) ->
     Now = edatetime:now2ts(),
 
-    URL = <<"http://", (config_endpoint())/binary, "/">>,
-    Headers = [{<<"Host">>,         config_endpoint()},
-               {<<"Content-Type">>, <<"application/x-amz-json-1.0">>},
+    URL = config_endpoint(),
+    Headers = [{<<"Content-Type">>, <<"application/x-amz-json-1.0">>},
                {<<"x-amz-date">>,   edatetime:iso8601(Now)},
                {<<"x-amz-target">>, target(Operation)}
               ],
@@ -638,7 +578,7 @@ config_endpoint() ->
         {ok, Endpoint} ->
             Endpoint;
         undefined ->
-            <<"dynamodb.", (config_region())/binary, ".amazonaws.com">>
+            <<"https://dynamodb.", (config_region())/binary, ".amazonaws.com">>
     end.
 
 config_aws_host() ->
