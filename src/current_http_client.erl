@@ -20,8 +20,9 @@
 %%
 -spec post(binary(), headers(), body(), options()) ->
                   response_ok() | response_error().
-post(URL, Headers, Body, _Opts) ->
-    case hackney:request(post, URL, Headers, Body) of
+post(URL, Headers, Body, Opts) ->
+    HackneyOpts = proplists:get_value(hackney_options, Opts, []),
+    case hackney:request(post, URL, Headers, Body, HackneyOpts) of
         {ok, ResponseCode, ResponseHeaders, Client} ->
             {ok, ResponseBody} = hackney:body(Client),
             {ok, {{ResponseCode, "unknown"}, ResponseHeaders, ResponseBody}};
