@@ -408,7 +408,7 @@ do(Operation, Body, Opts) ->
     Signed = [{<<"Authorization">>, authorization(Headers, Body, Now)}
               | Headers],
 
-    case current_http_client:post(ParsedURL, Signed, Body, Opts) of
+    case current_http_client:post(ParsedURL, add_security_token(Signed), Body, Opts) of
         {ok, {{200, _}, _, ResponseBody}} ->
             {ok, jiffy:decode(ResponseBody)};
 
@@ -462,6 +462,14 @@ apply_backpressure(Op, Body, Retries, Start, Opts, Reason) ->
 %% http://docs.aws.amazon.com/general/latest/gr/signature-version-4.html
 %%
 
+
+add_security_token(Headers) ->
+    case config_security_token() of
+        undefined ->
+            Headers;
+        Token ->
+            [{<<"x-amz-security-token">>, iolist_to_binary(Token)} | Headers]
+    end.
 
 authorization(Headers, Body, Now) ->
     CanonicalRequest = canonical(Headers, Body),
@@ -593,6 +601,9 @@ config_access_key() ->
 config_secret_key() ->
     {ok, Secret} = application:get_env(current, secret_access_key),
     Secret.
+
+config_security_token() ->
+    application:get_env(current, security_token, undefined).
 
 config_callback_mod() ->
     application:get_env(current, callback_mod, current_callback).
