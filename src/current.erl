@@ -399,14 +399,16 @@ do(Operation, Body, Opts) ->
     Now = edatetime:now2ts(),
 
     URL = config_endpoint(),
+    ParsedURL = current_http_client:parse_url(URL),
     Headers = [{<<"Content-Type">>, <<"application/x-amz-json-1.0">>},
                {<<"x-amz-date">>,   edatetime:iso8601(Now)},
-               {<<"x-amz-target">>, target(Operation)}
+               {<<"x-amz-target">>, target(Operation)},
+               {<<"host">>,         current_http_client:get_host_of_url(ParsedURL)}
               ],
     Signed = [{<<"Authorization">>, authorization(Headers, Body, Now)}
               | Headers],
 
-    case current_http_client:post(URL, Signed, Body, Opts) of
+    case current_http_client:post(ParsedURL, Signed, Body, Opts) of
         {ok, {{200, _}, _, ResponseBody}} ->
             {ok, jiffy:decode(ResponseBody)};
 

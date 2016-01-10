@@ -2,7 +2,9 @@
 -module(current_http_client).
 
 %% API
--export([post/4]).
+-export([post/4, parse_url/1, get_host_of_url/1]).
+
+-include_lib("hackney/include/hackney_lib.hrl").
 
 %%
 %% TYPES
@@ -31,3 +33,9 @@ post(URL, Headers, Body, Opts) ->
         Other ->
             {error, {"didn't understand the response", Other}}
     end.
+
+parse_url(Url) ->
+    hackney_url:parse_url(Url).
+
+get_host_of_url(#hackney_url{host = Host}) ->
+    Host.
