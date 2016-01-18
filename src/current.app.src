@@ -8,8 +8,7 @@
                   stdlib,
                   jiffy,
                   edatetime,
-                  erlsha2,
-                  hackney
+                  erlsha2
                  ]},
   {mod, { current_app, []}},
   {env, []}

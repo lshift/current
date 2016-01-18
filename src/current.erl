@@ -397,18 +397,19 @@ retry(Op, Body, Retries, Start, Opts) ->
 
 do(Operation, Body, Opts) ->
     Now = edatetime:now2ts(),
+    HttpClient = config_http_client(),
 
     URL = config_endpoint(),
-    ParsedURL = current_http_client:parse_url(URL),
+    ParsedURL = HttpClient:parse_url(URL),
     Headers = [{<<"Content-Type">>, <<"application/x-amz-json-1.0">>},
                {<<"x-amz-date">>,   edatetime:iso8601(Now)},
                {<<"x-amz-target">>, target(Operation)},
-               {<<"host">>,         current_http_client:get_host_of_url(ParsedURL)}
+               {<<"host">>,         HttpClient:get_host_of_url(ParsedURL)}
               ],
     Signed = [{<<"Authorization">>, authorization(Headers, Body, Now)}
               | Headers],
 
-    case current_http_client:post(ParsedURL, add_security_token(Signed), Body, Opts) of
+    case HttpClient:post(ParsedURL, add_security_token(Signed), Body, Opts) of
         {ok, {{200, _}, _, ResponseBody}} ->
             {ok, jiffy:decode(ResponseBody)};
 
@@ -607,6 +608,9 @@ config_security_token() ->
 
 config_callback_mod() ->
     application:get_env(current, callback_mod, current_callback).
+
+config_http_client() ->
+    application:get_env(current, http_client, current_http_client_hackney).
 
 %% Query Options
 opts_timeout(Opts)     -> proplists:get_value(timeout,     Opts, 5000).

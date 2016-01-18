@@ -100,8 +100,8 @@ batch_get_unprocessed_items() ->
     UnprocessedKeys = {[{?TABLE, {[{<<"Keys">>, Keys2}]}},
                         {?TABLE_OTHER, {[{<<"Keys">>, Keys2}]}}
                        ]},
-    meck:new(current_http_client, [passthrough]),
-    meck:expect(current_http_client, post, 4,
+    meck:new(current_http_client_hackney, [passthrough]),
+    meck:expect(current_http_client_hackney, post, 4,
                 meck:seq([fun (URL, Headers, Body, Opts) ->
                                   {ok, {{200, _}, ResponseHeaders, ResponseBody}} =
                                       meck:passthrough([URL, Headers, Body, Opts]),
@@ -129,7 +129,7 @@ batch_get_unprocessed_items() ->
     ?assertEqual(key_sort(Keys), key_sort(Table1)),
     ?assertEqual(key_sort(Keys), key_sort(Table2)),
 
-    meck:unload(current_http_client).
+    meck:unload(current_http_client_hackney).
 
 
 scan() ->
@@ -353,15 +353,15 @@ get_put_update_delete() ->
 
 
 retry_with_timeout() ->
-    meck:new(current_http_client, [passthrough]),
-    meck:expect(current_http_client, post, fun (_, _, _, _) ->
+    meck:new(current_http_client_hackney, [passthrough]),
+    meck:expect(current_http_client_hackney, post, fun (_, _, _, _) ->
                                                    {error, claim_timeout}
                                            end),
     ?assertEqual({error, max_retries, claim_timeout},
                  current:describe_table({[{<<"TableName">>, ?TABLE}]},
                                         [{retries, 3}])),
 
-    meck:unload(current_http_client).
+    meck:unload(current_http_client_hackney).
 
 
 throttled() ->
@@ -376,8 +376,8 @@ throttled() ->
                                 {[{'__type',  E},
                                   {message, <<"foobar">>}]})}},
 
-    meck:new(current_http_client, [passthrough]),
-    meck:expect(current_http_client, post, 4,
+    meck:new(current_http_client_hackney, [passthrough]),
+    meck:expect(current_http_client_hackney, post, 4,
                 meck_ret_spec:seq(
                   [ThrottledResponse,
                    ThrottledResponse,
@@ -395,12 +395,12 @@ throttled() ->
 
     ?assertEqual(ok, current:batch_write_item(WriteRequest, [{retries, 3}])),
 
-    meck:unload(current_http_client).
+    meck:unload(current_http_client_hackney).
 
 non_json_error() ->
-    meck:new(current_http_client, [passthrough]),
+    meck:new(current_http_client_hackney, [passthrough]),
     CurrentResponse = {ok, {{413, ""}, [], <<"not a json response!">>}},
-    meck:expect(current_http_client, post, 4, CurrentResponse),
+    meck:expect(current_http_client_hackney, post, 4, CurrentResponse),
 
     Key = {[{<<"hash_key">>, ?NUMBER(1)},
             {<<"range_key">>, ?NUMBER(1)}]},
@@ -410,7 +410,7 @@ non_json_error() ->
     ?assertEqual({error, {413, <<"not a json response!">>}},
                  Response),
 
-    meck:unload(current_http_client).
+    meck:unload(current_http_client_hackney).
 
 
 
@@ -489,6 +489,7 @@ normalize_key_order([{H} | T], Acc) ->
 
 setup() ->
     {ok, _} = application:ensure_all_started(current),
+    {ok, _} = application:ensure_all_started(hackney),
 
     %% Make travis-ci use different env/config we do not need valid
     %% credentials for CI since we are using local DynamDB
@@ -513,7 +514,8 @@ setup() ->
     ok.
 
 teardown(_) ->
-    application:stop(current).
+    application:stop(current),
+    application:stop(hackney).
 
 
 create_table(Name) ->
